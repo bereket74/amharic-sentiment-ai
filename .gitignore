@@ -1,0 +1,38 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+.DS_Store
+HF_TOKEN
+
+# Source posts and downloaded benchmark data are not committed.
+data/raw/
+data/processed/
+
+# Trained weights and serialized objects remain local or are uploaded separately.
+artifacts/**/model/
+artifacts/**/*.joblib
+artifacts/**/*.pt
+artifacts/**/*.pth
+artifacts/**/*.safetensors
+artifacts/**/*.bin
+artifacts/**/tokenizer.json
+artifacts/**/tokenizer_config.json
+artifacts/**/sentencepiece.bpe.model
+artifacts/**/special_tokens_map.json
+artifacts/**/vocab.json
+artifacts/**/merges.txt
+
+# Temporary run outputs; curated aggregate reports are stored in reports/.
+runs/
+space/model/
+
+# Generated model and Space release bundles
+release/

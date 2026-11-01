@@ -1,0 +1,21 @@
+flowchart TD
+    A[AfriSenti Amharic<br/>pinned CC BY 4.0 source] --> B[Download train / dev / test]
+    B --> C[Unicode normalization + duplicate and overlap audit]
+    C --> D[Train subset]
+    C --> E[Validation subset]
+    C --> F[Test subset<br/>locked until final evaluation]
+    D --> G[Classical<br/>word + char TF-IDF, LinearSVC]
+    D --> H[Neural<br/>scratch word embeddings + BiGRU]
+    D --> I[Transformer<br/>pinned AfroXLM-R-mini]
+    E --> G
+    E --> H
+    E --> I
+    G --> J[Select settings / epochs by validation macro-F1]
+    H --> J
+    I --> J
+    J --> K[Fresh final refit on train + validation]
+    K --> L[Evaluate each candidate once on untouched test]
+    F --> L
+    L --> M[Macro-F1 + bootstrap CI + per-class analysis]
+    M --> N[Winner chosen by validation, not test]
+    N --> O[Model card + Gradio demo / HF Space bundle]

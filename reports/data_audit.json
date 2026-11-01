@@ -1,0 +1,80 @@
+{
+  "dataset": "AfriSenti Amharic (official SemEval 2023 Task 12 release)",
+  "source_repository": "afrisenti-semeval/afrisent-semeval-2023",
+  "source_commit": "5aec3cfcf87b59f885e98641f72e52182776429d",
+  "source_url": "https://github.com/afrisenti-semeval/afrisent-semeval-2023/tree/5aec3cfcf87b59f885e98641f72e52182776429d",
+  "source_files": {
+    "train": {
+      "bytes": 1128020,
+      "sha256": "70408ef3dc742039d23347fa8d8ef553a01de4624c67153259d8f5223de84fca"
+    },
+    "validation": {
+      "bytes": 280350,
+      "sha256": "b5b803b7591eb8b45710131f8ea263d369794ff5e681b327c5a605df01c796f8"
+    },
+    "test": {
+      "bytes": 404163,
+      "sha256": "a3b2425d20af63371c20dd8c5248ffec7317454a7bad513fa58e00de81669819"
+    }
+  },
+  "license": "CC BY 4.0",
+  "label_names_and_ids": {
+    "positive": 0,
+    "neutral": 1,
+    "negative": 2
+  },
+  "raw_split_rows": {
+    "train": 5984,
+    "validation": 1497,
+    "test": 1999
+  },
+  "raw_label_counts": {
+    "train": {
+      "positive": 1332,
+      "neutral": 3104,
+      "negative": 1548
+    },
+    "validation": {
+      "positive": 333,
+      "neutral": 776,
+      "negative": 388
+    },
+    "test": {
+      "positive": 438,
+      "neutral": 224,
+      "negative": 1337
+    }
+  },
+  "final_split_rows": {
+    "train": 5982,
+    "validation": 1497,
+    "test": 1999
+  },
+  "final_label_counts": {
+    "train": {
+      "positive": 1331,
+      "neutral": 3104,
+      "negative": 1547
+    },
+    "validation": {
+      "positive": 333,
+      "neutral": 776,
+      "negative": 388
+    },
+    "test": {
+      "positive": 438,
+      "neutral": 224,
+      "negative": 1337
+    }
+  },
+  "exact_duplicate_rows_within_original_splits": {
+    "train": 2,
+    "validation": 0,
+    "test": 0
+  },
+  "cross_split_train_rows_removed": 0,
+  "cross_split_validation_rows_removed": 0,
+  "unique_texts_with_conflicting_labels_across_original_splits": 0,
+  "test_split_modified": false,
+  "duplicate_key_policy": "NFKC normalization, Unicode casefolding, and whitespace collapse; punctuation/emojis retained"
+}
