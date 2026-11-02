@@ -68,14 +68,17 @@ def _inference_example(model_type: str) -> list[str]:
         "## Demo availability",
         "",
         (
-            "No hosted Gradio demo is currently available. The inference code "
-            "is included in this repository."
+            "Try the free [browser-only Static Space](https://huggingface.co/spaces/"
+            "klohdfhk/amharic-sentiment-demo). It runs the quantized ONNX model on "
+            "your device, without an inference server or API token."
         ),
         "",
     ]
 
 
-def _model_card(metadata: dict[str, Any], model_type: str) -> str:
+def _model_card(
+    metadata: dict[str, Any], model_type: str, browser_evaluation: dict[str, Any]
+) -> str:
     selected = metadata["models"][model_type]
     metrics = selected["test_metrics"]
     low, high = metrics["macro_f1_95pct_bootstrap_ci"]
@@ -97,6 +100,7 @@ def _model_card(metadata: dict[str, Any], model_type: str) -> str:
         "A three-class Amharic sentiment classifier trained on the official AfriSenti",
         "Amharic benchmark. The release contains model files, code for inference, and",
         "reproducibility metadata; it does not contain source tweets.",
+        "Source code: [GitHub repository](https://github.com/bereket74/amharic-sentiment-ai).",
         "",
         "## Labels",
         "",
@@ -162,6 +166,40 @@ def _model_card(metadata: dict[str, Any], model_type: str) -> str:
             "variation across training seeds.",
             "",
             *_inference_example(model_type),
+            "## Browser-native INT8 variant",
+            "",
+            (
+                f"The Static Space uses a dynamically quantized, per-channel INT8 ONNX "
+                f"variant ({browser_evaluation['artifact_bytes'] / 1_000_000:.1f} MB) "
+                "with Transformers.js. The model runs in the visitor's browser; no "
+                "inference token or server is used. First use downloads about 141 MB "
+                "of model and tokenizer files."
+            ),
+            "",
+            (
+                "| Variant | Validation macro-F1 | Test accuracy | Test macro-F1 | "
+                "Test label agreement with full model |"
+            ),
+            "|---|---:|---:|---:|---:|",
+            (
+                f"| Full-precision transformer | "
+                f"{selected['validation_metrics']['macro_f1']:.3f} | "
+                f"{metrics['accuracy']:.3f} | {metrics['macro_f1']:.3f} | — |"
+            ),
+            (
+                f"| Browser INT8 (per-channel) | "
+                f"{browser_evaluation['validation_metrics']['macro_f1']:.3f} | "
+                f"{browser_evaluation['test_metrics']['accuracy']:.3f} | "
+                f"{browser_evaluation['test_metrics']['macro_f1']:.3f} | "
+                f"{browser_evaluation['test_label_agreement_with_full_model']:.1%} |"
+            ),
+            "",
+            "The INT8 variant was selected using validation results only. Its test results "
+            "are reported separately because quantization changes some individual outputs; "
+            "the browser demo shows only the predicted class, not an uncalibrated score. "
+            "See [`browser_model_evaluation.json`](./browser_model_evaluation.json) for "
+            "full per-class metrics.",
+            "",
             "## Intended use and limitations",
             "",
             "This model is for research and educational demonstrations of Amharic sentiment",
@@ -208,18 +246,31 @@ def _copy_model_artifact(model_type: str, source: Path, destination: Path) -> No
     shutil.copy2(metadata, destination / metadata.name)
 
 
-def build(run_dir: Path, release_dir: Path) -> None:
+def build(
+    run_dir: Path,
+    release_dir: Path,
+    onnx_model: Path,
+    browser_evaluation_path: Path,
+) -> None:
     results_path = run_dir / "benchmark_results.json"
     metadata = json.loads(results_path.read_text(encoding="utf-8"))
+    browser_evaluation = json.loads(browser_evaluation_path.read_text(encoding="utf-8"))
     model_type = metadata["selected_model"]
     source = Path(metadata["models"][model_type]["model_path"])
+    if not onnx_model.is_file():
+        raise FileNotFoundError(f"Browser ONNX model does not exist: {onnx_model}")
     if release_dir.exists():
         raise FileExistsError(f"Release output already exists: {release_dir}; choose a new path")
     model_dir = release_dir / "model"
     _copy_model_artifact(model_type, source, model_dir)
+    onnx_dir = model_dir / "onnx"
+    onnx_dir.mkdir(parents=True)
+    shutil.copy2(onnx_model, onnx_dir / "model_quantized.onnx")
     source_ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "*.egg-info")
     shutil.copytree(ROOT / "src", model_dir / "src", ignore=source_ignore)
-    (model_dir / "README.md").write_text(_model_card(metadata, model_type), encoding="utf-8")
+    (model_dir / "README.md").write_text(
+        _model_card(metadata, model_type, browser_evaluation), encoding="utf-8"
+    )
     shutil.copy2(ROOT / "requirements.lock", model_dir / "requirements.lock")
     (model_dir / "data_audit.json").write_text(
         json.dumps(metadata["dataset"], ensure_ascii=False, indent=2) + "\n",
@@ -247,17 +298,12 @@ def build(run_dir: Path, release_dir: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
+    shutil.copy2(browser_evaluation_path, model_dir / "browser_model_evaluation.json")
 
     space_dir = release_dir / "space"
     space_dir.mkdir(parents=True)
-    shutil.copy2(ROOT / "space" / "app.py", space_dir / "app.py")
-    shutil.copy2(ROOT / "space" / "requirements.txt", space_dir / "requirements.txt")
-    space_readme = (ROOT / "space" / "README.md").read_text(encoding="utf-8")
-    (space_dir / "README.md").write_text(space_readme, encoding="utf-8")
-    (space_dir / "model_config.json").write_text(
-        json.dumps({"model_type": model_type}, indent=2) + "\n", encoding="utf-8"
-    )
-    shutil.copytree(ROOT / "src", space_dir / "src", ignore=source_ignore)
+    shutil.copy2(ROOT / "space" / "README.md", space_dir / "README.md")
+    shutil.copy2(ROOT / "space" / "index.html", space_dir / "index.html")
     print(f"Model type: {model_type}")
     print(f"Model bundle: {model_dir.resolve()}")
     print(f"Space bundle: {space_dir.resolve()}")
@@ -268,9 +314,11 @@ def main() -> None:
         description="Package the selected model and demo for Hugging Face"
     )
     parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument("--onnx-model", type=Path, required=True)
+    parser.add_argument("--browser-evaluation", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "release" / "2026-11-01")
     args = parser.parse_args()
-    build(args.run_dir, args.output_dir)
+    build(args.run_dir, args.output_dir, args.onnx_model, args.browser_evaluation)
 
 
 if __name__ == "__main__":

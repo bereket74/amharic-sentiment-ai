@@ -67,15 +67,23 @@ python app.py --model-type transformer --model-path runs/benchmark-final-cpu72-2
 
 Replace `transformer` and its path with `classical` plus the `model.joblib` path, or `neural` plus the `neural_weights.npz` path, if validation selects a different model. The Gradio demo runs locally at `http://127.0.0.1:7860` and does not create a public share link.
 
-The `space/` folder contains the prepared Gradio Space app; `scripts/build_release.py` packages it with the selected model, inference code, and model-type config. The selected model is now public at [klohdfhk/amharic-sentiment-ai](https://huggingface.co/klohdfhk/amharic-sentiment-ai). Its 470 MB weights, inference code, metrics, and model card were verified on the Hub.
+The public model is [klohdfhk/amharic-sentiment-ai](https://huggingface.co/klohdfhk/amharic-sentiment-ai). The interactive [Hugging Face Static Space](https://huggingface.co/spaces/klohdfhk/amharic-sentiment-demo) runs a quantized ONNX model in the visitor's browser; it does not use an inference server or paid hardware. Its first use downloads about 141 MB of model and tokenizer files. The GitHub source is [bereket74/amharic-sentiment-ai](https://github.com/bereket74/amharic-sentiment-ai).
+
+### Rebuild the browser release
+
+The optional ONNX tools are separate from the core training environment. These commands export the selected transformer, evaluate the quantized variant on the official splits (writing aggregate metrics only), then assemble and publish the model and static Space:
 
 ```bash
-python scripts/build_release.py --run-dir runs/benchmark-final-cpu72-20261101 --output-dir release/benchmark-final-cpu72-20261101
+pip install -r requirements.browser.txt
+python scripts/export_browser_model.py --run-dir runs/benchmark-final-cpu72-20261101 --output-dir release/browser-model-2026-11-02
+python scripts/evaluate_browser_model.py --run-dir runs/benchmark-final-cpu72-20261101 --raw-dir data/raw/afrisenti-amharic --quantized-model-dir release/browser-model-2026-11-02/onnx-int8-per-channel --output release/browser_model_evaluation.json
+python scripts/build_release.py --run-dir runs/benchmark-final-cpu72-20261101 --onnx-model release/browser-model-2026-11-02/onnx-int8-per-channel/model_quantized.onnx --browser-evaluation release/browser_model_evaluation.json --output-dir release/static-2026-11-02
+HF_TOKEN="$HF_TOKEN" python scripts/publish_huggingface.py --release-dir release/static-2026-11-02
 ```
 
-The public model is published; the Space is not. Hugging Face returned HTTP 402 when creating the Gradio Space, stating that Gradio/Docker Spaces on CPU Basic require Pro. No paid plan or upgrade was initiated. The local demo can be run with the command above while this workspace is active; its forwarded preview is temporary. The prepared Space bundle remains in `release/benchmark-final-cpu72-20261101/space` for a hosting environment with compatible access. The combined publisher script should not be rerun until Space creation is available, because it uploads the model before reaching the blocked Space step.
+The original Gradio/Docker Space attempt returned HTTP 402 because this account could not use its hosted CPU runtime. No paid plan or hardware was enabled; the free Static Space avoids that limitation by running inference locally. The 8-bit variant scored 0.659 validation macro-F1 and 0.456 test macro-F1 versus 0.666 and 0.466 for the full transformer, with 94.5% agreement on test labels. The official test split is distribution-shifted, and predictions are not calibrated probabilities.
 
-The intended public GitHub repository is `bereket-web/amharic-sentiment-ai`, but the current GitHub connection is authenticated as `bereket74` and has no push permission to `bereket-web/project_s1`; no repository was created under the wrong owner. Reconnect the `bereket-web` account to publish the source. The publisher reads `HF_TOKEN` from the environment and never stores or prints it. The `.env` file is ignored by Git; never commit a real token or reuse credentials reserved for another project.
+The GitHub repository contains source, tests, documentation, and aggregate evaluation only; raw social-media posts and model weights are excluded. The `.env` file is ignored by Git; never commit a real token. The Hugging Face publisher reads `HF_TOKEN` from the environment and never stores or prints it.
 
 ## License
 

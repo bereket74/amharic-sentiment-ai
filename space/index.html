@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f8fc">
+  <title>Amharic Sentiment AI</title>
+  <style>
+    :root { color-scheme: light; --ink: #152238; --muted: #53657d; --line: #d7e0eb; --blue: #2457c5; --paper: #fff; --bg: #f4f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top right, #e4edff, transparent 38rem), var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width: min(760px, calc(100% - 32px)); margin: 6vh auto; }
+    .eyebrow { color: var(--blue); font-size: .76rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: .45rem 0; font-size: clamp(2rem, 6vw, 3rem); line-height: 1.12; }
+    .lead { margin: .7rem 0 1.6rem; color: var(--muted); font-size: 1.05rem; }
+    .card { padding: clamp(20px, 5vw, 34px); border: 1px solid var(--line); border-radius: 20px; background: var(--paper); box-shadow: 0 18px 48px #1a35520c; }
+    label { display: block; margin-bottom: .55rem; font-weight: 700; }
+    textarea { display: block; width: 100%; min-height: 150px; resize: vertical; padding: 14px 15px; border: 1px solid #b9c8da; border-radius: 12px; background: #fbfdff; color: var(--ink); font: inherit; font-size: 1.06rem; line-height: 1.65; }
+    textarea:focus { outline: 3px solid #2457c526; border-color: var(--blue); }
+    .hint, .fine { color: var(--muted); font-size: .88rem; }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; }
+    button { min-height: 46px; padding: 10px 18px; border: 0; border-radius: 11px; background: var(--blue); color: white; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { cursor: wait; opacity: .7; }
+    .sample { border: 1px solid var(--line); background: #fff; color: var(--blue); }
+    #status { min-height: 1.5rem; margin-top: 14px; color: var(--muted); font-size: .92rem; }
+    #result { display: none; margin-top: 18px; padding: 16px 18px; border-left: 4px solid var(--blue); border-radius: 8px; background: #f0f5ff; }
+    #result.visible { display: block; }
+    #label { margin: 0; font-size: 1.45rem; text-transform: capitalize; }
+    .notice { margin-top: 18px; padding-top: 17px; border-top: 1px solid var(--line); }
+    a { color: var(--blue); }
+    footer { margin: 18px 4px; color: var(--muted); font-size: .87rem; }
+    @media (max-width: 520px) { main { margin: 24px auto; } .actions button { width: 100%; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Browser-only · Amharic · Three classes</div>
+    <h1>Amharic Sentiment AI</h1>
+    <p class="lead">Classify a short Amharic message as positive, neutral, or negative. The model runs on your device; your text is not sent to an inference server.</p>
+
+    <section class="card" aria-labelledby="input-heading">
+      <form id="sentiment-form">
+        <label id="input-heading" for="message">Amharic text</label>
+        <textarea id="message" maxlength="5000" required placeholder="እውነት በጣም ጥሩ ነው" aria-describedby="input-hint"></textarea>
+        <p class="hint" id="input-hint">Longer messages are truncated to the model's 72-token input limit.</p>
+        <div class="actions">
+          <button id="submit" type="submit">Load model and analyze</button>
+          <button class="sample" id="sample" type="button">Use a sample</button>
+        </div>
+      </form>
+      <div id="status" role="status" aria-live="polite">On first use, the browser downloads about 141 MB of model and tokenizer files. The browser may cache them for later use.</div>
+      <div id="result" aria-live="polite"><div class="fine">Predicted sentiment</div><p id="label"></p></div>
+
+      <div class="notice fine">
+        <strong>Limits and privacy:</strong> This is an 8-bit, quantized version of the published transformer. It is close to, but not identical to, the full model. Scores are not calibrated probabilities; do not use predictions for high-impact decisions or profiling. The browser downloads public model files from Hugging Face; the text you enter is processed locally and is not uploaded by this page. Browser memory and speed vary by device.
+      </div>
+    </section>
+
+    <footer>
+      <a href="https://huggingface.co/klohdfhk/amharic-sentiment-ai" rel="noreferrer">Model card and evaluation</a> ·
+      <a href="https://github.com/bereket74/amharic-sentiment-ai" rel="noreferrer">Source code</a> ·
+      Built for research and education. No raw benchmark posts are included in this demo.
+    </footer>
+  </main>
+
+  <script type="module">
+    import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.1";
+
+    const MODEL_ID = "klohdfhk/amharic-sentiment-ai";
+    const form = document.querySelector("#sentiment-form");
+    const input = document.querySelector("#message");
+    const submit = document.querySelector("#submit");
+    const status = document.querySelector("#status");
+    const resultBox = document.querySelector("#result");
+    const labelBox = document.querySelector("#label");
+    let classifierPromise;
+
+    function loadingMessage(info) {
+      if (Number.isFinite(info?.progress)) {
+        status.textContent = `Downloading model files: ${Math.round(info.progress)}% for the current file. Keep this page open.`;
+      }
+    }
+
+    async function getClassifier() {
+      if (!classifierPromise) {
+        classifierPromise = pipeline("text-classification", MODEL_ID, {
+          dtype: "q8",
+          progress_callback: loadingMessage,
+        });
+        classifierPromise = classifierPromise.catch((error) => {
+          classifierPromise = undefined;
+          throw error;
+        });
+      }
+      return classifierPromise;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      submit.disabled = true;
+      resultBox.classList.remove("visible");
+      try {
+        status.textContent = "Loading the model. The first load can take a few minutes on a slow connection.";
+        const classifier = await getClassifier();
+        status.textContent = "Analyzing locally in your browser…";
+        const output = await classifier(text, { top_k: 1, truncation: true, max_length: 72 });
+        const prediction = Array.isArray(output) ? output[0] : output;
+        const rawLabel = String(prediction?.label ?? "").toLowerCase();
+        const labelMap = { label_0: "positive", label_1: "neutral", label_2: "negative" };
+        labelBox.textContent = labelMap[rawLabel] ?? rawLabel;
+        resultBox.classList.add("visible");
+        status.textContent = "Done. Your text stayed in this browser.";
+      } catch (error) {
+        console.error(error);
+        status.textContent = "The model could not be loaded. Check your connection and browser memory, then try again.";
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    document.querySelector("#sample").addEventListener("click", () => {
+      input.value = "እውነት በጣም ጥሩ ነው";
+      input.focus();
+    });
+  </script>
+</body>
+</html>

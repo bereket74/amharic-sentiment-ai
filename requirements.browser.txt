@@ -1,0 +1,3 @@
+# Optional tooling for exporting and evaluating the browser INT8 model.
+# Install alongside the core dependencies in requirements.lock.
+optimum-onnx[onnxruntime]==0.1.0

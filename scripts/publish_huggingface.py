@@ -52,21 +52,28 @@ def publish(release_dir: Path, model_id: str, space_id: str, token: str) -> None
     api = HfApi(token=token)
     _assert_public_or_missing(api, model_id, "model")
     _assert_public_or_missing(api, space_id, "space")
+    api.create_repo(
+        repo_id=space_id,
+        repo_type="space",
+        private=False,
+        exist_ok=True,
+        space_sdk="static",
+    )
     model_commit = _publish_folder(api, release_dir / "model", model_id, "model")
     space_commit = _publish_folder(
         api,
         release_dir / "space",
         space_id,
         "space",
-        space_sdk="gradio",
+        space_sdk="static",
     )
     model_info = api.model_info(model_id)
     space_info = api.space_info(space_id)
     if model_info.private or space_info.private:
         raise RuntimeError("The uploaded repository or Space is private, not publicly published.")
     print(f"Model: https://huggingface.co/{model_id} (commit {model_commit.oid})")
-    print(f"Space: https://huggingface.co/spaces/{space_id} (commit {space_commit.oid})")
-    print(f"Space runtime stage: {space_info.runtime.stage if space_info.runtime else 'unknown'}")
+    print(f"Static Space: https://huggingface.co/spaces/{space_id} (commit {space_commit.oid})")
+    print("Space runtime: static HTML; no paid hardware requested")
 
 
 def main() -> None:

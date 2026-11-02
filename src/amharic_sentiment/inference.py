@@ -44,10 +44,17 @@ def _training_max_length(model_path: Path | str, source: str) -> int | None:
 class SentimentPredictor:
     """Load one trained model once and reuse it for low-latency single predictions."""
 
-    def __init__(self, model_type: str, model_path: str | Path) -> None:
+    def __init__(
+        self,
+        model_type: str,
+        model_path: str | Path,
+        *,
+        device: str | torch.device = "cpu",
+    ) -> None:
         if model_type not in {"classical", "neural", "transformer"}:
             raise ValueError(f"Unknown model type: {model_type}")
         self.model_type = model_type
+        self.device = torch.device(device)
         self.model_path = (
             Path(model_path)
             if model_type != "transformer" or Path(model_path).exists()
@@ -62,7 +69,7 @@ class SentimentPredictor:
             source = str(self.model_path)
             self.tokenizer = AutoTokenizer.from_pretrained(source, fix_mistral_regex=False)
             self.model = AutoModelForSequenceClassification.from_pretrained(source)
-            self.model.to(torch.device("cpu"))
+            self.model.to(self.device)
             self.model.eval()
             self.metadata["max_length"] = _training_max_length(self.model_path, source) or int(
                 getattr(self.model.config, "max_position_embeddings", 128)
@@ -85,10 +92,10 @@ class SentimentPredictor:
             )
             with np.load(weights_path, allow_pickle=False) as saved:
                 state = {
-                    name: torch.tensor(np.array(saved[name], copy=True)) for name in saved.files
-                }
+                name: torch.tensor(np.array(saved[name], copy=True)) for name in saved.files
+            }
             self.model.load_state_dict(state, strict=True)
-            self.model.to(torch.device("cpu"))
+            self.model.to(self.device)
             self.model.eval()
 
     def predict_label(self, text: str) -> str:
@@ -103,8 +110,8 @@ class SentimentPredictor:
             encoded, lengths = _encode([_tokenize(text)], self.vocab, self.max_length)
             with torch.inference_mode():
                 logits = self.model(
-                    torch.as_tensor(encoded, dtype=torch.long),
-                    torch.as_tensor(lengths, dtype=torch.long),
+                    torch.as_tensor(encoded, dtype=torch.long, device=self.device),
+                    torch.as_tensor(lengths, dtype=torch.long, device=self.device),
                 )
             label_id = int(logits.argmax(dim=1).item())
         else:
@@ -115,6 +122,7 @@ class SentimentPredictor:
                 max_length=max_length,
                 return_tensors="pt",
             )
+            encoded = {name: tensor.to(self.device) for name, tensor in encoded.items()}
             with torch.inference_mode():
                 logits = self.model(**encoded).logits
             label_id = int(logits.argmax(dim=-1).item())
