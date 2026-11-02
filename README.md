@@ -67,15 +67,15 @@ python app.py --model-type transformer --model-path runs/benchmark-final-cpu72-2
 
 Replace `transformer` and its path with `classical` plus the `model.joblib` path, or `neural` plus the `neural_weights.npz` path, if validation selects a different model. The Gradio demo runs locally at `http://127.0.0.1:7860` and does not create a public share link.
 
-The `space/` folder is the deployment-ready Gradio Space app; `scripts/build_release.py` packages it with the selected model, inference code, and model-type config. To build this release and publish both the model and Space:
+The `space/` folder contains the prepared Gradio Space app; `scripts/build_release.py` packages it with the selected model, inference code, and model-type config. The selected model is now public at [klohdfhk/amharic-sentiment-ai](https://huggingface.co/klohdfhk/amharic-sentiment-ai). Its 470 MB weights, inference code, metrics, and model card were verified on the Hub.
 
 ```bash
 python scripts/build_release.py --run-dir runs/benchmark-final-cpu72-20261101 --output-dir release/benchmark-final-cpu72-20261101
-source .env  # copy .env.example to .env and set a project-specific HF_TOKEN locally
-python scripts/publish_huggingface.py --release-dir release/benchmark-final-cpu72-20261101
 ```
 
-The publisher reads `HF_TOKEN` from the environment and never stores or prints it. Target repositories are `klohdfhk/amharic-sentiment-ai` and `klohdfhk/amharic-sentiment-demo`; publication is pending a dedicated project-scoped write token. The `.env` file is ignored by Git; never commit a real token or reuse credentials reserved for another project.
+The public model is published; the Space is not. Hugging Face returned HTTP 402 when creating the Gradio Space, stating that Gradio/Docker Spaces on CPU Basic require Pro. No paid plan or upgrade was initiated. The local demo can be run with the command above while this workspace is active; its forwarded preview is temporary. The prepared Space bundle remains in `release/benchmark-final-cpu72-20261101/space` for a hosting environment with compatible access. The combined publisher script should not be rerun until Space creation is available, because it uploads the model before reaching the blocked Space step.
+
+The intended public GitHub repository is `bereket-web/amharic-sentiment-ai`, but the current GitHub connection is authenticated as `bereket74` and has no push permission to `bereket-web/project_s1`; no repository was created under the wrong owner. Reconnect the `bereket-web` account to publish the source. The publisher reads `HF_TOKEN` from the environment and never stores or prints it. The `.env` file is ignored by Git; never commit a real token or reuse credentials reserved for another project.
 
 ## License
 

@@ -8,8 +8,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_REPO_ID = "klohdfhk/amharic-sentiment-ai"
-SPACE_REPO_ID = "klohdfhk/amharic-sentiment-demo"
-GITHUB_REPO_URL = "https://github.com/bereket-web/amharic-sentiment-ai"
 
 
 def _metric_rows(metrics: dict[str, Any]) -> str:
@@ -67,10 +65,12 @@ def _inference_example(model_type: str) -> list[str]:
         'print(predictor.predict_label("ይህ በጣም ጥሩ ነው"))',
         "```",
         "",
-        "## Links",
+        "## Demo availability",
         "",
-        f"- Source code: [GitHub repository]({GITHUB_REPO_URL})",
-        f"- Interactive demo: [Hugging Face Space](https://huggingface.co/spaces/{SPACE_REPO_ID})",
+        (
+            "No hosted Gradio demo is currently available. The inference code "
+            "is included in this repository."
+        ),
         "",
     ]
 
@@ -85,8 +85,6 @@ def _model_card(metadata: dict[str, Any], model_type: str) -> str:
         "license: cc-by-4.0",
         "language:",
         "  - am",
-        "spaces:",
-        f"  - {SPACE_REPO_ID}",
         "pipeline_tag: text-classification",
         "tags:",
         "  - amharic",
